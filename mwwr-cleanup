@@ -1,0 +1,14 @@
+#!/bin/bash
+cond=$1
+fst="$cond.a"
+snd="$cond.b"
+both="$cond.both"
+
+echo "Cleaning up files"
+for prefix in "$fst" "$snd" "$both"; do
+    rm "$prefix.sc.txt"
+done
+
+rm "$both.ranks.txt"
+rm "$cond.stats.txt"
+rm "$cond.mww.txt"

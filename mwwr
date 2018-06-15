@@ -1,0 +1,27 @@
+#!/bin/bash
+cond=$1
+fst="$cond.a"
+snd="$cond.b"
+both="$cond.both"
+
+echo "Collating data"
+# Columns: value frequency
+# Sort:    value ascending
+sort -n "$fst.txt" | uniq -c | awk '{print $2, $1}' > "$fst.sc.txt"
+sort -n "$snd.txt" | uniq -c | awk '{print $2, $1}' > "$snd.sc.txt"
+
+echo "Merging samples"
+mwwr-merge-samples "$fst.sc.txt" "$snd.sc.txt" "$both.sc.txt"
+
+echo "Generating rank function"
+mwwr-rank-function "$both.sc.txt" "$both.ranks.txt"
+
+echo "Computing statistical summary"
+mwwr-hodges-lehmann-sixnumbers "$fst.sc" "$snd.sc" "$cond.stats.txt"
+
+echo "Performing Mann-Whitney-Wilcoxon test"
+mwwr-mann-whitney-wilcoxon "$fst.sc" "$snd.sc" "$both.sc.txt" "$both.ranks.txt" "$cond.mww.txt"
+
+echo
+echo "Report:"
+cat "$cond.stats.txt" "$cond.mww.txt" | tee "$cond.report.txt"

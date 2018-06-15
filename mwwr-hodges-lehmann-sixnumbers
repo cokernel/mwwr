@@ -1,0 +1,92 @@
+#!/usr/bin/env ruby
+#
+# Compute six number summary for two samples, as well as
+# Hodges-Lehmann estimator of their difference.
+
+a = ARGV[0]
+b = ARGV[1]
+output = ARGV[2]
+
+def get_data(file)
+    total_weight = 0.0
+    rows = IO.readlines(file).map do |line|
+        value, weight = line.chomp.split(/\s+/).map(&:to_f)
+        total_weight += weight
+        [value, weight]
+    end
+    {rows: rows, total_weight: total_weight}
+end
+
+# NOTE: this assumes :rows is sorted
+def percentile(weighted_array, pct)
+    rows = weighted_array[:rows]
+    total_weight = weighted_array[:total_weight]
+    target_weight = total_weight * pct
+
+    current_weight = 0
+    target = nil
+    rows.each_with_index do |row, index|
+        value = row[0]
+        weight = row[1]
+        if current_weight + weight < target_weight
+            current_weight += weight
+        elsif current_weight + weight == target_weight
+            target = 0.5 * (value + rows[index + 1][0])
+            break
+        else
+            target = value
+            break
+        end
+    end
+    target
+end
+
+def sixnum(weighted_array)
+    n = weighted_array[:rows].collect {|row|
+        row[1]
+    }.inject(&:+)
+    min = weighted_array[:rows].first[0]
+    max = weighted_array[:rows].last[0]
+    q1 = percentile(weighted_array, 0.25)
+    median = percentile(weighted_array, 0.5)
+    q3 = percentile(weighted_array, 0.75)
+    {n: n, min: min, max: max, q1: q1, median: median, q3: q3}
+end
+
+def hodges_lehmann(adata, bdata)
+    merge = {rows: [], total_weight: 0.0}
+    mhash = {}
+    adata[:rows].each do |arow|
+        avalue, aweight = arow
+        bdata[:rows].each do |brow|
+            bvalue, bweight = brow
+
+            mvalue = bvalue - avalue
+            mweight = aweight * bweight
+
+            mhash[mvalue] ||= 0
+            mhash[mvalue] += mweight
+
+            merge[:total_weight] += mweight
+        end
+    end
+    mhash.keys.sort.each do |mvalue|
+        merge[:rows] << [mvalue, mhash[mvalue]]
+    end
+    percentile(merge, 0.5)
+end
+
+File.open(output, 'wb') do |f|
+    afile = "#{a}.txt"
+    adata = get_data(afile)
+    afns = sixnum(adata)
+    f.puts "Summary of #{a}: n = #{afns[:n]}, median = #{afns[:median]} [q1 = #{afns[:q1]}, q3 = #{afns[:q3]}] (min = #{afns[:min]}, max = #{afns[:max]})"
+
+    bfile = "#{b}.txt"
+    bdata = get_data(bfile)
+    bfns = sixnum(bdata)
+    f.puts "Summary of #{b}: n = #{bfns[:n]}, median = #{bfns[:median]} [q1 = #{bfns[:q1]}, q3 = #{bfns[:q3]}] (min = #{bfns[:min]}, max = #{bfns[:max]})"
+
+    hl = hodges_lehmann(adata, bdata)
+    f.puts "Hodges-Lehmann estimator (median {#{b} - #{a}}) = #{hl}"
+end

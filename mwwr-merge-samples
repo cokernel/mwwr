@@ -1,0 +1,54 @@
+#!/usr/bin/env ruby
+
+a = File.open(ARGV[0], 'r')
+b = File.open(ARGV[1], 'r')
+out = ARGV[2]
+
+def fetch_line(f)
+    v, w = f.gets.chomp.split(/\s+/)
+    v = v.to_f
+    w = w.to_i
+    [v, w]
+end
+
+File.open(out, 'wb') do |f|
+av, aw = fetch_line(a)
+bv, bw = fetch_line(b)
+
+while true do
+        if av == bv
+            f.puts "#{av} #{aw + bw}"
+            unless a.eof?
+                av, aw = fetch_line(a)
+            end
+            unless b.eof?
+                bv, bw = fetch_line(b)
+            end
+        elsif av < bv
+            f.puts "#{av} #{aw}"
+            unless a.eof?
+                av, aw = fetch_line(a)
+            else
+                f.puts "#{bv} #{bw}"
+                until b.eof?
+                    bv, bw = fetch_line(b)
+                    f.puts "#{bv} #{bw}"
+                end
+            end
+        else
+            f.puts "#{bv} #{bw}"
+            unless b.eof?
+                bv, bw = fetch_line(b)
+            else
+                f.puts "#{av} #{aw}"
+                until a.eof?
+                    av, aw = fetch_line(a)
+                    f.puts "#{av} #{aw}"
+                end
+            end
+        end
+        if a.eof? and b.eof?
+            break
+        end
+    end
+end

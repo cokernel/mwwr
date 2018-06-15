@@ -1,0 +1,76 @@
+#!/usr/bin/env ruby
+
+def ustat(file, rank)
+    rank_sum = 0
+    n = 0
+    IO.readlines(file).each do |line|
+        line.strip!
+        value, weight = line.split(/\s+/).map(&:to_f)
+        unless rank[value]
+            puts "can't find #{value} in rank table"
+            puts line
+            puts rank.keys.take(10).join(', ')
+        end
+        rank_sum += rank[value] * weight
+        n += weight
+    end
+    [rank_sum - n * (n + 1) / 2, n]
+end
+
+def sigma_corr(mergefile, n1, n2)
+    n = (n1 + n2).to_f
+    lfactor = n1 * n2 / 12.to_f
+    rfactor = (n + 1).to_f
+    IO.readlines(mergefile).each do |line|
+        line.strip!
+        value, weight = line.split(/\s+/).map(&:to_f)
+        rfactor -= (weight**3 - weight) / (n * (n - 1))
+    end
+    Math.sqrt(lfactor * rfactor)
+end
+
+def zscore(u, n1, n2, mergefile)
+    (u - (n1 * n2 / 2)) / sigma_corr(mergefile, n1, n2)
+end
+
+a = ARGV[0]
+b = ARGV[1]
+mergefile = ARGV[2]
+ranksfile = ARGV[3]
+output = ARGV[4]
+
+afile = "#{a}.txt"
+bfile = "#{b}.txt"
+
+File.open(output, 'wb') do |f|
+    f.puts
+    f.puts "Null hypothesis:"
+    f.puts "H0 = The distributions of #{a} and #{b} do not significantly differ."
+
+    rk = {}
+    IO.readlines(ranksfile).each do |line|
+        line.chomp!
+        value, rank = line.split(/\s+/).map(&:to_f)
+        rk[value] = rank
+    end
+
+    ua, na = ustat(afile, rk)
+    f.puts "U-statistic for #{afile}: #{ua}"
+    ub, nb = ustat(bfile, rk)
+    f.puts "U-statistic for #{bfile}: #{ub}"
+
+    u = ua
+    if ub < ua
+        u = ub
+    end
+    f.puts "U-statistic (minimum): #{u}"
+
+    z = zscore(u, na, nb, mergefile)
+    f.puts "Z-score: #{z}"
+
+    if z.abs < 1.96
+        f.puts "|#{z}| < 1.96, so we cannot reject the null hypothesis."
+    else
+        f.puts "|#{z}| >= 1.96, so we reject the null hypothesis."
+    end
+end

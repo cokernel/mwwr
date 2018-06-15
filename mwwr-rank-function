@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+
+input = ARGV[0]
+output = ARGV[1]
+
+File.open(output, 'wb') do |f|
+    total = 0
+    IO.readlines(input).each do |line|
+        line.strip!
+        value, weight = line.split(/\s+/).map(&:to_f)
+        offset_rank = weight * (weight + 1) / 2
+        average_rank = total + offset_rank / weight
+        f.puts "#{value} #{average_rank}"
+        total += weight
+    end
+end
