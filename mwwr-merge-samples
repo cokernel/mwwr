@@ -1,54 +1,32 @@
-#!/usr/bin/env ruby
+#!/bin/bash
 
-a = File.open(ARGV[0], 'r')
-b = File.open(ARGV[1], 'r')
-out = ARGV[2]
+a=$1
+b=$2
+out=$3
 
-def fetch_line(f)
-    v, w = f.gets.chomp.split(/\s+/)
-    v = v.to_f
-    w = w.to_i
-    [v, w]
-end
+sort -n "$a" "$b" > "$out.presort"
 
-File.open(out, 'wb') do |f|
-av, aw = fetch_line(a)
-bv, bw = fetch_line(b)
+/usr/bin/env ruby <<-RUBY
+input="$out.presort"
+output="$out"
 
-while true do
-        if av == bv
-            f.puts "#{av} #{aw + bw}"
-            unless a.eof?
-                av, aw = fetch_line(a)
-            end
-            unless b.eof?
-                bv, bw = fetch_line(b)
-            end
-        elsif av < bv
-            f.puts "#{av} #{aw}"
-            unless a.eof?
-                av, aw = fetch_line(a)
-            else
-                f.puts "#{bv} #{bw}"
-                until b.eof?
-                    bv, bw = fetch_line(b)
-                    f.puts "#{bv} #{bw}"
-                end
-            end
+current_value = nil
+current_weight = nil
+File.open(output, "wb") do |f|
+    IO.readlines(input).each do |line|
+        pieces = line.strip.split(/\s+/)
+        value = pieces[0].to_f
+        weight = pieces[1].to_i
+        if value == current_value
+            current_weight += weight
         else
-            f.puts "#{bv} #{bw}"
-            unless b.eof?
-                bv, bw = fetch_line(b)
-            else
-                f.puts "#{av} #{aw}"
-                until a.eof?
-                    av, aw = fetch_line(a)
-                    f.puts "#{av} #{aw}"
-                end
-            end
-        end
-        if a.eof? and b.eof?
-            break
+            f.puts "#{current_value} #{current_weight}" if current_value
+            current_value = value
+            current_weight = weight
         end
     end
+    f.puts "#{current_value} #{current_weight}"
 end
+RUBY
+
+rm "$out.presort"
